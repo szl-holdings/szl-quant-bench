@@ -3,8 +3,9 @@
 Honest quantization quality-curve bench for the SZL estate. Real uniform
 absmax quantization (round-to-nearest, signed ints, 2–16 bits) with quality
 metrics — cosine similarity, KL divergence over softmaxed rows, top-1
-agreement, MSE — so a GGUF/4-bit decision is made from a measured curve,
-not vibes. Stdlib only; no downloads, no network.
+agreement, MSE — on the supplied logits. This measures logit quantization,
+not weight quantization, GGUF behavior, inference speed, or model quality
+after a weight conversion. Stdlib only; no downloads, no network.
 
 Doctrine: empty or missing inputs return `BLOCKED` with a reason. The demo
 fixture is synthetic and labeled as such. Nothing here claims to measure a
@@ -15,7 +16,7 @@ real model unless you pass real logits in. Run states:
 
 ```
 pip install -e . pytest
-python -m pytest tests/ -q              # 8 tests
+python -m pytest tests/ -q
 python -m szl_quant_bench.harness       # deterministic fixture curve + receipt
 ```
 
@@ -34,10 +35,34 @@ initial push. Your model's curve will differ — run it on real logits.
 
 ## Measuring a real model
 
-Capture a logit batch (e.g. the final-layer logits for a fixed eval prompt set
-from `SZLHOLDINGS/SZL-Khipu-1.5B`), pass it to `run_curve(logits, chain=chain)`,
-and attach the emitted receipt to your decision record. Compare 4-bit vs 8-bit
-only on the same prompt set, same hardware, same revision — same fairness
-doctrine as szl-retrieval-bench and szl-engine-bench.
+Capture a logit batch from the exact model revision and fixed evaluation
+prompt set. Store a JSON object with `logits` (a rectangular finite numeric
+matrix) and `provenance` containing:
+
+- `source_kind`: `REAL_MODEL_LOGITS`
+- `model_id`, `runtime`, `hardware`: nonempty identifiers
+- `model_revision`: the exact 40-character lowercase commit
+- `prompt_set_sha256`: the full lowercase SHA-256 of the saved prompt artifact
+
+```sh
+python -m szl_quant_bench.harness --input model-logits.json --output curve-receipt.json
+```
+
+The output file must not already exist. Missing provenance, malformed matrices,
+non-finite values and invalid bit widths fail closed with a nonzero exit.
+With no input the CLI runs only the explicitly `SYNTHETIC` fixture.
+The Python API accepts `run_curve(logits, chain=chain, provenance=provenance)`;
+omitting provenance labels the source `UNVERIFIED_CALLER_INPUT`.
+
+Receipts bind the normalized float input matrix hash, complete provenance,
+all quality records and the explicit measurement boundary. Provenance remains
+`CALLER_DECLARED`: a hash cannot establish that the caller actually ran a model.
+Preserve the raw logits and independent model execution evidence to support
+that claim. Empty or malformed chains do not verify. KL is evaluated in log
+space without silently clipping small probabilities.
+
+Compare bit widths only on the same inputs, hardware and revision. A measured
+logit curve does **not** authorize a GGUF export decision: actual quantized
+model outputs and runtime evaluation are separately required.
 
 Apache-2.0 · Doctrine v11 · SZL Holdings

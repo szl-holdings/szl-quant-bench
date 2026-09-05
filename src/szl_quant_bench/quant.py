@@ -7,7 +7,7 @@ round-to-nearest, signed integers at the requested bit width.
 
 def quantize(values, bits):
     """values: flat list of floats. Returns (ints, scale). bits in 2..16."""
-    if not 2 <= bits <= 16:
+    if type(bits) is not int or not 2 <= bits <= 16:
         raise ValueError("bits must be in 2..16")
     if not values:
         return [], 1.0
