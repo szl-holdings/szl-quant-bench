@@ -48,7 +48,9 @@ def run_curve(logits, bits=DEFAULT_BITS, chain=None, *, provenance=None):
     Synthetic-fixture results are labeled as such by the caller; nothing here
     claims to measure a real model unless real logits were passed in.
     """
-    if isinstance(logits, (list, tuple)) and (not logits or logits == [[]]):
+    if logits is None or (isinstance(logits, (list, tuple)) and
+                          (not logits or all(isinstance(row, (list, tuple)) and not row
+                                             for row in logits))):
         return {"state": "BLOCKED", "reason": "empty logits matrix"}
     try:
         if not isinstance(logits, (list, tuple)) or not logits:

@@ -11,13 +11,20 @@ from szl_quant_bench.quant import quantize
 from szl_quant_bench.receipts import ReceiptChain
 
 
-@pytest.mark.parametrize("logits", [None, "bad", [1], [[1], [2, 3]],
+@pytest.mark.parametrize("logits", ["bad", [1], [[1], [2, 3]],
                                   [[True]], [[float("nan")]],
                                   [[float("inf")]], [["1"]],
                                   [[1e308, -1e308]]])
 def test_invalid_matrix_never_emits_receipt(logits):
     chain = ReceiptChain()
     assert run_curve(logits, chain=chain)["state"] == "INVALID"
+    assert chain.chain == []
+
+
+@pytest.mark.parametrize("logits", [None, [], [[]], [[], []], ((), ())])
+def test_missing_or_wholly_empty_logits_are_blocked(logits):
+    chain = ReceiptChain()
+    assert run_curve(logits, chain=chain)["state"] == "BLOCKED"
     assert chain.chain == []
 
 
