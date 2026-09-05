@@ -22,8 +22,16 @@ def _softmax(row):
 
 def kl_divergence(p_row, q_row):
     """KL(P || Q) over softmaxed rows. >= 0; 0 means identical distributions."""
-    p, q = _softmax(p_row), _softmax(q_row)
-    return sum(pi * math.log(pi / max(qi, 1e-12)) for pi, qi in zip(p, q) if pi > 0)
+    if len(p_row) != len(q_row) or not p_row:
+        raise ValueError("KL rows must have equal nonzero length")
+    # Work in log space: clipping Q would silently cap large divergences.
+    pm, qm = max(p_row), max(q_row)
+    pz = math.log(sum(math.exp(x - pm) for x in p_row))
+    qz = math.log(sum(math.exp(x - qm) for x in q_row))
+    log_p = [x - pm - pz for x in p_row]
+    log_q = [x - qm - qz for x in q_row]
+    return max(0.0, sum(math.exp(p) * (p - q)
+                        for p, q in zip(log_p, log_q) if math.exp(p) > 0))
 
 
 def top1_agreement(rows_a, rows_b):
