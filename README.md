@@ -52,7 +52,10 @@ The output file must not already exist. Missing provenance, malformed matrices,
 non-finite values and invalid bit widths fail closed with a nonzero exit.
 With no input the CLI runs only the explicitly `SYNTHETIC` fixture.
 The Python API accepts `run_curve(logits, chain=chain, provenance=provenance)`;
-omitting provenance labels the source `UNVERIFIED_CALLER_INPUT`.
+omitting provenance labels the source `UNVERIFIED_CALLER_INPUT`. Every
+`MEASURED` API result carries a hash-chained receipt record. If no chain is
+supplied, the API creates a fresh one-record chain for that measurement; pass
+a caller-owned `ReceiptChain` to append the record to an existing chain.
 
 Receipts bind the normalized float input matrix hash, complete provenance,
 all quality records and the explicit measurement boundary. Provenance remains
