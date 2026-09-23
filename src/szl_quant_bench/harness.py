@@ -95,8 +95,8 @@ def run_curve(logits, bits=DEFAULT_BITS, chain=None, *, provenance=None):
               "measurement": "UNIFORM_LOGIT_QUANTIZATION",
               "weight_quantization_measured": False,
               "gguf_export_authorized": False}
-    if chain is not None:
-        result["receipt"] = chain.emit({"type": "quant_curve", **result})
+    receipt_chain = chain if chain is not None else ReceiptChain()
+    result["receipt"] = receipt_chain.emit({"type": "quant_curve", **result})
     return result
 
 
