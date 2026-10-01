@@ -1,6 +1,6 @@
 # szl-quant-bench
 
-[![PyPI](https://img.shields.io/pypi/v/szl-quant-bench)](https://pypi.org/project/szl-quant-bench/) [![Python](https://img.shields.io/pypi/pyversions/szl-quant-bench)](https://pypi.org/project/szl-quant-bench/)
+[![PyPI](https://img.shields.io/pypi/v/szl-quant-bench)](https://pypi.org/project/szl-quant-bench/) [![Python](https://img.shields.io/pypi/pyversions/szl-quant-bench)](https://pypi.org/project/szl-quant-bench/) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/szl-holdings/szl-quant-bench/badge)](https://scorecard.dev/viewer/?uri=github.com/szl-holdings/szl-quant-bench)
 
 Honest quantization quality-curve bench for the SZL estate. Real uniform
 absmax quantization (round-to-nearest, signed ints, 2–16 bits) with quality
