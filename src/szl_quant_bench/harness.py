@@ -7,6 +7,7 @@ import hashlib
 import json
 import math
 import re
+import stat
 from pathlib import Path
 
 from .metrics import cosine, kl_divergence, mse, top1_agreement
@@ -15,6 +16,65 @@ from .receipts import ReceiptChain
 
 STATES = ("MEASURED", "BLOCKED", "INVALID", "FAILED")
 DEFAULT_BITS = (16, 8, 4, 3, 2)
+MAX_INPUT_BYTES = 128 * 1024 * 1024
+MAX_INPUT_DEPTH = 64
+
+
+def _unique_json_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON object key")
+        result[key] = value
+    return result
+
+
+def _finite_json_float(value):
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError("JSON numbers must be finite")
+    return number
+
+
+def _reject_json_constant(value):
+    raise ValueError("JSON numbers must be finite")
+
+
+def _check_input_depth(value):
+    # Keep one iterator per container, rather than a second copy of wide input.
+    stack = [(iter((value,)), 0)]
+    while stack:
+        items, depth = stack[-1]
+        try:
+            current = next(items)
+        except StopIteration:
+            stack.pop()
+            continue
+        if isinstance(current, (dict, list)):
+            if depth >= MAX_INPUT_DEPTH:
+                raise ValueError("input JSON exceeds 64 nested containers")
+            children = current.values() if isinstance(current, dict) else current
+            stack.append((iter(children), depth + 1))
+
+
+def _load_input(path):
+    metadata = path.stat()
+    if not stat.S_ISREG(metadata.st_mode):
+        raise ValueError("input must be a regular file")
+    if metadata.st_size > MAX_INPUT_BYTES:
+        raise ValueError("input exceeds 128 MiB")
+    # The file may grow after stat; bound the bytes actually consumed as well.
+    with path.open("rb") as source:
+        encoded = source.read(MAX_INPUT_BYTES + 1)
+    if len(encoded) > MAX_INPUT_BYTES:
+        raise ValueError("input exceeds 128 MiB")
+    try:
+        value = json.loads(encoded.decode("utf-8"), object_pairs_hook=_unique_json_object,
+                           parse_float=_finite_json_float, parse_constant=_reject_json_constant)
+    except RecursionError:
+        raise ValueError("input JSON nesting exceeds the decoder limit") from None
+    _check_input_depth(value)
+    return value
 
 
 def _canonical(value):
@@ -112,9 +172,7 @@ def main():
     chain = ReceiptChain()
     try:
         if args.input:
-            if args.input.stat().st_size > 128 * 1024 * 1024:
-                raise ValueError("input exceeds 128 MiB")
-            envelope = json.loads(args.input.read_text(encoding="utf-8"))
+            envelope = _load_input(args.input)
             if not isinstance(envelope, dict) or "provenance" not in envelope:
                 raise ValueError("input requires logits and provenance")
             logits, origin = envelope.get("logits"), envelope["provenance"]
