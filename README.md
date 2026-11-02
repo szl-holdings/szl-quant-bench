@@ -65,6 +65,11 @@ python -m szl_quant_bench.harness --input model-logits.json --output curve-recei
 
 The output file must not already exist. Missing provenance, malformed matrices,
 non-finite values and invalid bit widths fail closed with a nonzero exit.
+CLI input must be a regular UTF-8 JSON file with unique object keys and finite
+numbers throughout the envelope. The 128 MiB limit applies to bytes consumed,
+including growth after the initial size check. More than 64 nested containers
+or a decoder nesting failure returns `INVALID` without a receipt. These checks
+do not provide filesystem isolation against concurrent input-path replacement.
 With no input the CLI runs only the explicitly `SYNTHETIC` fixture.
 The Python API accepts `run_curve(logits, chain=chain, provenance=provenance)`;
 omitting provenance labels the source `UNVERIFIED_CALLER_INPUT`. Every
