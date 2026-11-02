@@ -7,9 +7,18 @@ def mse(a, b):
 
 
 def cosine(a, b):
-    dot = sum(x * y for x, y in zip(a, b))
-    na = math.sqrt(sum(x * x for x in a)) or 1e-12
-    nb = math.sqrt(sum(y * y for y in b)) or 1e-12
+    # Independent positive rescaling preserves direction while keeping products
+    # bounded. Squaring the original floats can underflow or overflow even when
+    # the inputs are finite and the cosine itself is representable.
+    scale_a = max((abs(x) for x in a), default=0.0)
+    scale_b = max((abs(y) for y in b), default=0.0)
+    if not scale_a or not scale_b:
+        return 0.0
+    a = [x / scale_a for x in a]
+    b = [y / scale_b for y in b]
+    dot = math.fsum(x * y for x, y in zip(a, b))
+    na = math.sqrt(math.fsum(x * x for x in a))
+    nb = math.sqrt(math.fsum(y * y for y in b))
     return dot / (na * nb)
 
 
@@ -30,6 +39,8 @@ def kl_divergence(p_row, q_row):
     qz = math.log(sum(math.exp(x - qm) for x in q_row))
     log_p = [x - pm - pz for x in p_row]
     log_q = [x - qm - qz for x in q_row]
+    if any(not math.isfinite(value) for value in (*log_p, *log_q)):
+        raise ValueError("logits exceed numeric range for KL divergence")
     return max(0.0, sum(math.exp(p) * (p - q)
                         for p, q in zip(log_p, log_q) if math.exp(p) > 0))
 
