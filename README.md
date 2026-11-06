@@ -89,3 +89,9 @@ logit curve does **not** authorize a GGUF export decision: actual quantized
 model outputs and runtime evaluation are separately required.
 
 Apache-2.0 · Doctrine v11 · SZL Holdings
+
+Estate on Hugging Face: models, datasets and Spaces are published under the [SZLHOLDINGS](https://huggingface.co/SZLHOLDINGS) org.
+
+## License
+
+Apache-2.0 — see [LICENSE](LICENSE).
