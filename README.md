@@ -62,8 +62,12 @@ max(z[j], j != a)` its original runner-up margin, and
 
 When `m > 2 * epsilon`, then for every competing index `j`:
 `q[a] - q[j] >= m - 2*epsilon > 0`.
-Consequently the row's top-1 must be preserved. This is a **sufficient,
-not necessary**, source-math result for these supplied and dequantized logits.
+Consequently the row's top-1 must be preserved. Implementation
+conservatively rounds the computed margin *down* and the computed error bound
+*up* to neighboring binary64 floats before applying the strict inequality,
+to avoid accidentally accepting a floating-point boundary equality. This is a
+**sufficient, not necessary**, source-math result for these supplied and
+dequantized logits.
 It does not prove anything about weight quantization, unseen prompts,
 inference speed, statistical generalization, GPU kernels or model safety.
 
