@@ -28,6 +28,26 @@ def test_boundary_equal_two_epsilon_does_not_certify():
     assert observed["eligible_not_certified_rows"] == 1
 
 
+def test_ulp_boundary_is_not_certified_by_float_rounding():
+    # A tiny original margin with a one-ULP perturbation cannot pass
+    # the outward-rounded 2*epsilon sufficient bound.
+    tiny = 2 ** -52
+    original = [[1.0, 1.0 - tiny]]
+    dequantized = [[1.0 + tiny, 1.0 - tiny]]
+    bound = certificate(original, dequantized)
+    assert bound["eligible_rows"] == 1
+    assert bound["margin_certified_rows"] == 0
+
+
+def test_ulp_positive_margin_with_zero_error_remains_certified():
+    from math import nextafter
+
+    original = [[nextafter(1.0, 2.0), 1.0]]
+    bound = certificate(original, original)
+    assert bound["margin_certified_rows"] == 1
+    assert bound["eligible_rows"] == 1
+
+
 def test_unchanged_winner_below_bound_is_unproven_not_wrong():
     observed = certificate([[0.1, 0.0]], [[0.03, 0.01]])
     assert observed["margin_certified_rows"] == 0
