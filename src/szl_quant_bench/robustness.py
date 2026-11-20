@@ -57,14 +57,22 @@ def top1_margin_certificate(original_rows, dequantized_rows):
             abs(before - after)
             for before, after in zip(original, dequantized)
         )
-        twice_epsilon = 2 * epsilon
-        if not all(math.isfinite(value) for value in (
-            margin, epsilon, twice_epsilon
-        )):
+        # Floating subtraction can round the strict boundary in either
+        # direction. Shift the margin DOWN and the observed error UP by
+        # one representable float step before comparing. Doubling the
+        # upper error is exact in binary if finite; shift up once more to
+        # avoid inadvertently accepting a rounded boundary equality.
+        if not math.isfinite(margin) or not math.isfinite(epsilon):
+            numeric_unknown += 1
+            continue
+        lower_margin = math.nextafter(margin, -math.inf)
+        upper_epsilon = math.nextafter(epsilon, math.inf)
+        upper_twice_epsilon = math.nextafter(2 * upper_epsilon, math.inf)
+        if not math.isfinite(upper_twice_epsilon):
             numeric_unknown += 1
             continue
         eligible += 1
-        if margin > twice_epsilon:
+        if lower_margin > upper_twice_epsilon:
             # Independent observed-rank negative check for numeric regressions:
             # a sufficient margin certificate cannot coexist with a flip.
             if dequantized.index(max(dequantized)) != winner:
