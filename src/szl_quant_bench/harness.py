@@ -13,6 +13,7 @@ from pathlib import Path
 from .metrics import cosine, kl_divergence, mse, top1_agreement
 from .quant import dequantize, quantize
 from .receipts import ReceiptChain
+from .robustness import top1_margin_certificate
 
 STATES = ("MEASURED", "BLOCKED", "INVALID", "FAILED")
 DEFAULT_BITS = (16, 8, 4, 3, 2)
@@ -144,6 +145,7 @@ def run_curve(logits, bits=DEFAULT_BITS, chain=None, *, provenance=None):
                 "cosine": round(sum(cosine(a, d) for a, d in zip(logits, rows_dq)) / len(logits), 6),
                 "kl_mean": round(sum(kl_divergence(a, d) for a, d in zip(logits, rows_dq)) / len(logits), 8),
                 "top1_agreement": round(top1_agreement(logits, rows_dq), 6),
+                "top1_margin_certificate": top1_margin_certificate(logits, rows_dq),
                 "compression_vs_fp32": round(32.0 / b, 2),
             })
         _canonical(records)  # reject overflow or any non-finite computed metric

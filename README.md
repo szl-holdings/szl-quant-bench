@@ -48,6 +48,61 @@ python -m szl_quant_bench.harness       # deterministic fixture curve + receipt
 These numbers came out of `run_curve` in this repository, executed before the
 initial push. Your model's curve will differ — run it on real logits.
 
+## Frontier research: mathematically bounded logit decisions
+
+**Research question (not a measured improvement):** can a quantization quality
+curve distinguish an unchanged argmax from an argmax whose stability has a
+conservative mathematical certificate? Average cosine, KL and top-1 agreement
+alone do not expose this distinction.
+
+For each row of original logits `z` and the **actually dequantized** logits
+`q`, let `a` be the unique original top-1 index, `m = z[a] -
+max(z[j], j != a)` its original runner-up margin, and
+`epsilon = max_i |z[i] - q[i]|` the observed L-infinity perturbation.
+
+When `m > 2 * epsilon`, then for every competing index `j`:
+`q[a] - q[j] >= m - 2*epsilon > 0`.
+Consequently the row's top-1 must be preserved. Implementation
+conservatively rounds the computed margin *down* and the computed error bound
+*up* to neighboring binary64 floats before applying the strict inequality,
+to avoid accidentally accepting a floating-point boundary equality. This is a
+**sufficient, not necessary**, source-math result for these supplied and
+dequantized logits.
+It does not prove anything about weight quantization, unseen prompts,
+inference speed, statistical generalization, GPU kernels or model safety.
+
+Each `curve` record now includes `top1_margin_certificate` with
+`eligible_rows`, `margin_certified_rows`,
+`eligible_not_certified_rows`, `tied_top1_rows`,
+`single_class_rows`, `numeric_unknown_rows`, and
+`margin_certified_fraction`. An empty eligible denominator is JSON
+`null`, **never 0 or 1**. Ambiguous ties, singleton classes and non-finite
+intermediate arithmetic are never certified. Certification is independent of
+the repository's unsigned receipt chain; hashes establish byte consistency,
+not independent origin or signer identity.
+
+**External methods studied; no borrowed code or new dependency:**
+
+- [SmoothQuant (Guangxuan Xiao, Ji Lin et al., ICML 2023)](https://arxiv.org/abs/2211.10438),
+  [official code](https://github.com/mit-han-lab/smoothquant):
+  weight/activation transformation, *not* a logit decision certificate.
+- [AWQ (Ji Lin et al., MLSys 2024)](https://arxiv.org/abs/2306.00978),
+  [official code](https://github.com/mit-han-lab/llm-awq):
+  activation-aware weight scaling, *not* measured here.
+- [GPTQ (Elias Frantar et al., 2022)](https://arxiv.org/abs/2210.17323),
+  [official code](https://github.com/IST-DASLab/gptq):
+  second-order weight quantization, *not* measured here.
+
+**Falsification gate:** negative tests must reject equality at
+`m == 2*epsilon`, tied top-1, singleton rows, finite-input subtraction
+overflow, false source values and receipt tampering. Randomized deterministic
+fixtures must never report a certificate for a flipped top-1. Compare only
+the *same* immutable model/logits/holdout data across candidate bit widths.
+A real GGUF, model or production decision additionally requires independently
+pinned source/model/dataset revisions, correct rights, actual runtime outputs,
+held-out quality measures, memory/latency benchmarks, signed deployment
+evidence and an owner-controlled release decision.
+
 ## Measuring a real model
 
 Capture a logit batch from the exact model revision and fixed evaluation
