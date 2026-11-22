@@ -9,6 +9,7 @@ A certified row is NOT a qualified model, weight quantization, cryptographic
 signature, or permission to export or serve a model. Ties, singleton classes,
 and non-finite *intermediate* arithmetic cannot receive a certificate.
 """
+
 from __future__ import annotations
 
 import math
@@ -35,10 +36,16 @@ def top1_margin_certificate(original_rows, dequantized_rows):
         for value in (*original, *dequantized):
             if isinstance(value, bool) or not isinstance(value, (int, float)):
                 raise ValueError("certificate requires numeric nonboolean logits")
-        if any(
-            not math.isfinite(float(value))
-            for value in (*original, *dequantized)
-        ):
+        # A valid Python int may exceed binary64 range. Treat its
+        # conversion overflow as numerically unknown, never as a crash or
+        # evidence of a certified model-quality claim.
+        try:
+            finite_logits = all(
+                math.isfinite(float(value)) for value in (*original, *dequantized)
+            )
+        except OverflowError:
+            finite_logits = False
+        if not finite_logits:
             numeric_unknown += 1
             continue
         if len(original) == 1:
@@ -49,13 +56,10 @@ def top1_margin_certificate(original_rows, dequantized_rows):
         if sum(value == top_value for value in original) != 1:
             ties += 1
             continue
-        runner_up = max(
-            value for idx, value in enumerate(original) if idx != winner
-        )
+        runner_up = max(value for idx, value in enumerate(original) if idx != winner)
         margin = top_value - runner_up
         epsilon = max(
-            abs(before - after)
-            for before, after in zip(original, dequantized)
+            abs(before - after) for before, after in zip(original, dequantized)
         )
         # Floating subtraction can round the strict boundary in either
         # direction. Shift the margin DOWN and the observed error UP by

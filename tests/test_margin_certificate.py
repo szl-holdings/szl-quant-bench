@@ -1,11 +1,12 @@
 """Deterministic red/green and adversarial controls for the logit margin bound."""
+
 from random import Random
 
 import pytest
 
 from szl_quant_bench.harness import run_curve
-from szl_quant_bench.robustness import top1_margin_certificate
 from szl_quant_bench.receipts import ReceiptChain
+from szl_quant_bench.robustness import top1_margin_certificate
 
 
 def certificate(a, b):
@@ -31,7 +32,7 @@ def test_boundary_equal_two_epsilon_does_not_certify():
 def test_ulp_boundary_is_not_certified_by_float_rounding():
     # A tiny original margin with a one-ULP perturbation cannot pass
     # the outward-rounded 2*epsilon sufficient bound.
-    tiny = 2 ** -52
+    tiny = 2**-52
     original = [[1.0, 1.0 - tiny]]
     dequantized = [[1.0 + tiny, 1.0 - tiny]]
     bound = certificate(original, dequantized)
@@ -111,10 +112,7 @@ def test_malformed_matrices_or_nonnumeric_inputs_fail_closed(a, b):
 def test_random_finite_certificate_never_contradicts_actual_argmax():
     rng = Random(20261120)
     before = [[rng.uniform(-4, 4) for _ in range(9)] for _ in range(140)]
-    after = [
-        [value + rng.uniform(-0.2, 0.2) for value in row]
-        for row in before
-    ]
+    after = [[value + rng.uniform(-0.2, 0.2) for value in row] for row in before]
     observed = certificate(before, after)
     assert observed["eligible_rows"] == 140
     assert observed["margin_certified_rows"] > 0
@@ -161,3 +159,21 @@ def test_single_class_curve_does_not_invent_certified_fraction():
     assert metric["eligible_rows"] == 0
     assert metric["single_class_rows"] == 2
     assert metric["margin_certified_fraction"] is None
+
+
+@pytest.mark.parametrize(
+    "huge", [10**400, -(10**400)], ids=["positive_overflow", "negative_overflow"]
+)
+def test_oversized_integer_logits_are_numeric_unknown_without_crashing(huge):
+    # A Python int can be valid numeric input but exceed binary64 range.
+    # It must not throw OverflowError or accidentally certify a row.
+    observed = certificate(
+        [[huge, 0], [5.0, 0.0], [0.0, 3.0]],
+        [[huge, 0], [5.0, 0.0], [huge, 3.0]],
+    )
+    assert observed["total_rows"] == 3
+    assert observed["numeric_unknown_rows"] == 2
+    assert observed["eligible_rows"] == 1
+    assert observed["margin_certified_rows"] == 1
+    assert observed["margin_certified_fraction"] == 1.0
+    assert observed["export_authorized"] is False
